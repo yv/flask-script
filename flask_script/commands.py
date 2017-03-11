@@ -2,6 +2,7 @@
 from __future__ import absolute_import,print_function
 
 import os
+import re
 import sys
 import code
 import warnings
@@ -13,7 +14,7 @@ import argparse
 from flask import _request_ctx_stack
 
 from .cli import prompt, prompt_pass, prompt_bool, prompt_choices
-from ._compat import izip, text_type
+from ._compat import izip, text_type, getargspec, iteritems
 
 
 class InvalidCommand(Exception):
@@ -98,6 +99,37 @@ class Option(object):
         self.args = args
         self.kwargs = kwargs
 
+decl_re = re.compile(':([a-z]+) ([A-Za-z_]+): ')
+
+
+def clean_doc(doc):
+    """
+    Cleans up a docstring and separates the main function documentation
+    from the documentation for the parameters
+
+    :param doc: a docstring
+    :return: a tuple of (cleaned up docstring, map of parameter docs)
+    """
+    if doc is None:
+        return None, {}
+    doc = inspect.cleandoc(doc)
+    main_part = []
+    opt_parts = {}
+    cur_part = main_part
+    for line in doc.split('\n'):
+        m = decl_re.search(line)
+        if m:
+            if m.group(1) == 'param':
+                cur_part = [line[m.end():]]
+                opt_parts[m.group(2)] = cur_part
+            else:
+                # do not store
+                cur_part = []
+        else:
+            cur_part.append(line)
+    result_main = '\n'.join(main_part)
+    result_opts = dict((k, '\n'.join(v)) for (k,v) in iteritems(opt_parts))
+    return result_main, result_opts
 
 class Command(object):
     """
@@ -119,6 +151,8 @@ class Command(object):
         if inspect.ismethod(func):
             args = args[1:]
 
+        self.__doc__, arg_docs = clean_doc(func.__doc__)
+
         options = []
 
         # first arg is always "app" : ignore
@@ -127,31 +161,30 @@ class Command(object):
         kwargs = dict(izip(*[reversed(l) for l in (args, defaults)]))
 
         for arg in args:
-
+            help_str = arg_docs.get(arg)
             if arg in kwargs:
-
                 default = kwargs[arg]
-
                 if isinstance(default, bool):
                     options.append(Option('-%s' % arg[0],
                                           '--%s' % arg,
                                           action="store_true",
                                           dest=arg,
+                                          help=help_str,
                                           required=False,
                                           default=default))
                 else:
                     options.append(Option('-%s' % arg[0],
                                           '--%s' % arg,
                                           dest=arg,
+                                          help=help_str,
                                           type=text_type,
                                           required=False,
                                           default=default))
 
             else:
-                options.append(Option(arg, type=text_type))
+                options.append(Option(arg, type=text_type, help=help_str))
 
         self.run = func
-        self.__doc__ = func.__doc__
         self.option_list = options
 
     @property

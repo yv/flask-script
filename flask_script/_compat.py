@@ -18,6 +18,7 @@ _identity = lambda x: x
 
 
 if not PY2:
+    # objects for Python >= 3
     unichr = chr
     range_type = range
     text_type = str
@@ -37,6 +38,8 @@ if not PY2:
             raise value.with_traceback(tb)
         raise value
 
+    from inspect import getfullargspec as getargspec
+
     ifilter = filter
     imap = map
     izip = zip
@@ -50,9 +53,10 @@ if not PY2:
     input = input
 
 else:
+    # objects for Python 2.7
     unichr = unichr
-    text_type = unicode
     range_type = xrange
+    text_type = unicode
     string_types = (str, unicode)
     integer_types = (int, long)
 
@@ -65,6 +69,8 @@ else:
     NativeStringIO = BytesIO
 
     exec('def reraise(tp, value, tb=None):\n raise tp, value, tb')
+
+    from inspect import getargspec
 
     from itertools import imap, izip, ifilter
     intern = intern
@@ -113,3 +119,5 @@ try:
     from urllib.parse import quote_from_bytes as url_quote
 except ImportError:
     from urllib import quote as url_quote
+
+__all__ = []

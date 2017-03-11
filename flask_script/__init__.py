@@ -29,18 +29,20 @@ safe_actions = (argparse._StoreAction,
                 argparse._AppendConstAction,
                 argparse._CountAction)
 
-
 try:
     import argcomplete
+
     ARGCOMPLETE_IMPORTED = True
 except ImportError:
     ARGCOMPLETE_IMPORTED = False
 
-def add_help(parser, help_args): 
+
+def add_help(parser, help_args):
     if not help_args:
         return
     parser.add_argument(*help_args,
                         action='help', default=argparse.SUPPRESS, help=_('show this help message and exit'))
+
 
 class Manager(object):
     """
@@ -72,13 +74,13 @@ class Manager(object):
     :param disable_argcomplete: disable automatic loading of argcomplete.
 
     """
-    help_args = ('-?','--help')
+    help_args = ('-?', '--help')
 
     def __init__(self, app=None, with_default_commands=None, usage=None,
                  help=None, description=None, disable_argcomplete=False):
 
         self.app = app
-        
+
         self.subparser_kwargs = dict()
 
         self._commands = OrderedDict()
@@ -162,7 +164,7 @@ class Manager(object):
 
     def create_app(self, *args, **kwargs):
         warnings.warn("create_app() is deprecated; use __call__().", warnings.DeprecationWarning)
-        return self(*args,**kwargs)
+        return self(*args, **kwargs)
 
     def create_parser(self, prog, func_stack=(), parent=None):
         """
@@ -170,7 +172,7 @@ class Manager(object):
         by get_options(), and subparser for the given commands.
         """
         prog = os.path.basename(prog)
-        func_stack=func_stack+(self,)
+        func_stack += (self,)
 
         options_parser = argparse.ArgumentParser(add_help=False)
         for option in self.get_options():
@@ -233,7 +235,7 @@ class Manager(object):
     def get_options(self):
         return self._options
 
-    def add_command(self, *args, **kwargs):
+    def add_command(self, command_or_name, command=None, namespace=None):
         """
         Adds command to registry.
 
@@ -242,20 +244,18 @@ class Manager(object):
         :param namespace: Namespace of the command (optional; pass as kwarg)
         """
 
-        if len(args) == 1:
-            command = args[0]
-            name = None
-
-        else:
-            name, command = args
-
-        if name is None:
+        if command is None:
+            # one positional arg -> command, guess for name
+            command = command_or_name
             if hasattr(command, 'name'):
                 name = command.name
 
             else:
                 name = type(command).__name__.lower()
                 name = re.sub(r'command$', '', name)
+        else:
+            # two positional args -> command, name
+            name = command_or_name
 
         if isinstance(command, Manager):
             command.parent = self
@@ -263,18 +263,17 @@ class Manager(object):
         if isinstance(command, type):
             command = command()
 
-        namespace = kwargs.get('namespace')
-        if not namespace:
+        if namespace is None:
             namespace = getattr(command, 'namespace', None)
 
-        if namespace:
+        if namespace is None:
+            # root namespace
+            self._commands[name] = command
+        else:
             if namespace not in self._commands:
                 self.add_command(namespace, Manager())
 
             self._commands[namespace]._commands[name] = command
-
-        else:
-            self._commands[name] = command
 
     def command(self, func):
         """
@@ -284,7 +283,6 @@ class Manager(object):
                      options.
 
         """
-
         command = Command(func)
         self.add_command(func.__name__, command)
 
@@ -310,7 +308,6 @@ class Manager(object):
             name = func.__name__
 
             if name not in self._commands:
-
                 command = Command()
                 command.run = func
                 command.__doc__ = func.__doc__
@@ -320,6 +317,7 @@ class Manager(object):
 
             self._commands[name].option_list.append(option)
             return func
+
         return decorate
 
     def shell(self, func):
@@ -351,7 +349,7 @@ class Manager(object):
     def handle(self, prog, args=None):
         self.set_defaults()
         app_parser = self.create_parser(prog)
-        
+
         args = list(args or [])
         app_namespace, remaining_args = app_parser.parse_known_args(args)
 
@@ -370,7 +368,7 @@ class Manager(object):
 
             # get only safe config options
             config_keys = [action.dest for action in handle.parser._actions
-                               if handle is last_func or action.__class__ in safe_actions]
+                           if handle is last_func or action.__class__ in safe_actions]
 
             # pass only safe app config keys
             config = dict((k, v) for k, v in iteritems(kwargs)
@@ -385,7 +383,7 @@ class Manager(object):
             try:
                 res = handle(*args, **config)
             except TypeError as err:
-                err.args = ("{0}: {1}".format(handle,str(err)),)
+                err.args = ("{0}: {1}".format(handle, str(err)),)
                 raise
 
             args = [res]
