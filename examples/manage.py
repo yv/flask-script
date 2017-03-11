@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 
+from __future__ import print_function
 import pprint
 
 from flask import Flask, current_app
@@ -11,7 +12,7 @@ from flask.ext.script.commands import ShowUrls, Clean
 def create_app(config=None):
     app = Flask(__name__)
     app.debug = False
-    print "CONFIG", config
+    print("CONFIG", config)
 
     app.config.from_envvar('APP_CONFIG', silent=True)
 
@@ -34,14 +35,14 @@ def dumpconfig():
 @manager.command
 def output(name):
     "print something"
-    print name
-    print type(name)
+    print(name)
+    print(type(name))
 
 
 @manager.command
 def outputplus(name, url=None):
     "print name and url"
-    print name, url
+    print(name, url)
 
 
 @manager.command
@@ -50,7 +51,7 @@ def getrolesimple():
     choices = ("member", "moderator", "admin")
 
     role = prompt_choices("role", choices=choices, default="member")
-    print "ROLE:", role
+    print("ROLE:", role)
 
 
 @manager.command
@@ -63,14 +64,14 @@ def getrole():
     )
 
     role = prompt_choices("role", choices=choices, resolve=int, default=1)
-    print "ROLE:", role
+    print("ROLE:", role)
 
 
 @manager.option('-n', '--name', dest='name', help="your name")
 @manager.option('-u', '--url', dest='url', help="your url")
 def optional(name, url):
     "print name and url"
-    print name, url
+    print(name, url)
 
 manager.add_option("-c", "--config",
                    dest="config",
