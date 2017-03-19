@@ -100,6 +100,7 @@ class Option(object):
         self.kwargs = kwargs
 
 decl_re = re.compile(':([a-z]+) ([A-Za-z_]+): ')
+option_re = re.compile(r'\.\. option:: +(-*[a-z_]+)((?:, -+[a-z_]+)*)')
 
 
 def clean_doc(doc):
@@ -126,10 +127,26 @@ def clean_doc(doc):
                 # do not store
                 cur_part = []
         else:
-            cur_part.append(line)
+            m = option_re.search(line)
+            if m:
+                cur_part = [line[m.end():]]
+                opt_parts[m.group(1)] = cur_part
+            else:
+                cur_part.append(line)
     result_main = '\n'.join(main_part)
     result_opts = dict((k, '\n'.join(v)) for (k,v) in iteritems(opt_parts))
     return result_main, result_opts
+
+def add_help_text(option_list, arg_docs):
+    """
+    add help text from param or option docstring
+
+    :param option_list: a list of Option objects
+    :param arg_docs: a dictionary mapping option name to help text
+    """
+    for opt in option_list:
+        if opt.args[0] in arg_docs and 'help' not in opt.kwargs:
+            opt.kwargs['help'] = arg_docs[opt.args[0]]
 
 class Command(object):
     """
@@ -145,13 +162,18 @@ class Command(object):
         if func is None:
             if not self.option_list:
                 self.option_list = []
+            if self.__doc__ and not hasattr(self, 'help'):
+                self.help, arg_docs = clean_doc(self.__doc__)
+            add_help_text(self.option_list, arg_docs)
             return
 
         args, varargs, keywords, defaults = getargspec(func)[:4]
         if inspect.ismethod(func):
             args = args[1:]
 
-        self.__doc__, arg_docs = clean_doc(func.__doc__)
+        help, arg_docs = clean_doc(func.__doc__)
+        if not hasattr(self, 'help'):
+            self.help = help
 
         options = []
 
@@ -189,7 +211,7 @@ class Command(object):
 
     @property
     def description(self):
-        description = self.__doc__ or ''
+        description = self.help or self.__doc__ or ''
         return description.strip()
 
     def add_option(self, option):
